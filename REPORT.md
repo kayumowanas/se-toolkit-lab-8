@@ -4,7 +4,29 @@ Paste your checkpoint evidence below. Add screenshots as image files in the repo
 
 ## Task 1A — Bare agent
 
-<!-- Paste the agent's response to "What is the agentic loop?" and "What labs are available in our LMS?" -->
+### Prompt: What is the agentic loop?
+
+The agentic loop is the fundamental cycle that autonomous AI agents follow to accomplish tasks. It typically consists of these core stages:
+
+1. Perceive — gather information about the current state.
+2. Think/Reason — analyze the situation and plan next steps.
+3. Act — execute actions using available tools.
+4. Observe — check the results of the action.
+5. Repeat — continue until the goal is achieved.
+
+The response also explained that this loop is what distinguishes agentic systems from simple chatbots: agents can take multi-step actions, recover from errors, and work toward complex goals independently.
+
+### Prompt: What labs are available in our LMS?
+
+The bare agent did not use live LMS backend data. Instead, it explored the local workspace with built-in file tools such as `list_dir` and `read_file`, then answered from repository documentation.
+
+It reported information based on local files about:
+
+- Lab 8 — The Agent is the Interface
+- Required tasks 1–4
+- Optional Telegram client task
+
+This confirms the expected Part A behavior: without MCP tools, the agent can inspect local files and produce plausible answers, but it is not yet connected to the real LMS backend.
 
 ## Task 1B — Agent with LMS tools
 
