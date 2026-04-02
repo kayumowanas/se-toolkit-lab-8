@@ -10,6 +10,9 @@ Use observability tools for questions about errors, failures, incidents, slow
 requests, and traces. Prefer recent, scoped evidence from VictoriaLogs and
 VictoriaTraces over guesses.
 
+When the user asks "What went wrong?" or "Check system health", treat that as a
+request for a one-shot investigation rather than a generic status summary.
+
 ## Available tools
 
 - `logs_search`: search recent logs by keyword, severity, service, and time window
@@ -27,10 +30,25 @@ VictoriaTraces over guesses.
 - Keep the scope narrow by default, such as the last 10 minutes, unless the
   user asks for a different time range.
 - Prefer the LMS backend when the user asks about "the backend" or "LMS backend".
+- For "What went wrong?" and "Check system health", use this sequence:
+  1. `logs_error_count` on a fresh recent window
+  2. `logs_search` for the most likely failing service with `severity="ERROR"`
+  3. `traces_get` for the most relevant recent `trace_id`, if available
+  4. one short explanation that cites both log evidence and trace evidence
+- When PostgreSQL-related failures appear, explicitly distinguish the real
+  backend/database failure from any misleading user-facing HTTP status.
+- If there are no recent errors, say the system looks healthy.
+- For recurring health-check requests in chat, use the built-in `cron` tool to
+  create a scheduled job for the current chat session.
 
 ## Response style
 
 - Summarize findings briefly.
 - Mention both the service and the failure type when you can.
 - Do not dump raw JSON unless the user explicitly asks for it.
-- If there are no recent backend errors, say so clearly.
+- For investigations, mention:
+  - the affected service
+  - the key recent error log
+  - the relevant trace or failing span/operation
+  - the likely root failing operation
+- If the backend response appears misleading, say so explicitly.
