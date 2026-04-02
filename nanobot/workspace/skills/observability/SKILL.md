@@ -27,13 +27,18 @@ request for a one-shot investigation rather than a generic status summary.
   service name to find specific failures.
 - If a relevant log record contains a `trace_id`, call `traces_get` for that
   trace and use it to explain where the failure happened.
+- If logs do not expose a usable `trace_id`, call `traces_list` for the same
+  service and recent incident window, pick the most relevant recent failing
+  trace, and then call `traces_get`.
 - Keep the scope narrow by default, such as the last 10 minutes, unless the
   user asks for a different time range.
 - Prefer the LMS backend when the user asks about "the backend" or "LMS backend".
 - For "What went wrong?" and "Check system health", use this sequence:
   1. `logs_error_count` on a fresh recent window
   2. `logs_search` for the most likely failing service with `severity="ERROR"`
-  3. `traces_get` for the most relevant recent `trace_id`, if available
+  3. `traces_get` for the most relevant recent `trace_id`
+     If no `trace_id` is visible in logs, use `traces_list` first to find a
+     recent failing trace for the same service, then inspect it with `traces_get`
   4. one short explanation that cites both log evidence and trace evidence
 - Do not stop after only log evidence if a recent `trace_id` is present. Follow
   the trace and mention at least one failing span or operation in the final
