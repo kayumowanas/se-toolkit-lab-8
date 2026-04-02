@@ -35,6 +35,14 @@ request for a one-shot investigation rather than a generic status summary.
   2. `logs_search` for the most likely failing service with `severity="ERROR"`
   3. `traces_get` for the most relevant recent `trace_id`, if available
   4. one short explanation that cites both log evidence and trace evidence
+- Do not stop after only log evidence if a recent `trace_id` is present. Follow
+  the trace and mention at least one failing span or operation in the final
+  answer.
+- If `logs_search` returns multiple records, prefer the newest error record that
+  includes a `trace_id`.
+- For the LMS failure path in this lab, be alert for a mismatch between the
+  backend's user-facing HTTP response and the deeper database failure shown by
+  the trace.
 - When PostgreSQL-related failures appear, explicitly distinguish the real
   backend/database failure from any misleading user-facing HTTP status.
 - If there are no recent errors, say the system looks healthy.
@@ -49,6 +57,7 @@ request for a one-shot investigation rather than a generic status summary.
 - For investigations, mention:
   - the affected service
   - the key recent error log
-  - the relevant trace or failing span/operation
+  - the relevant trace ID
+  - the failing span or operation from the trace
   - the likely root failing operation
 - If the backend response appears misleading, say so explicitly.
