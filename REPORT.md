@@ -161,15 +161,248 @@ ws://localhost:42002/ws/chat?access_key=lab8-private-password-anastasia
 
 ## Task 3A — Structured logging
 
-<!-- Paste happy-path and error-path log excerpts, VictoriaLogs query screenshot -->
+Nanobot startup after the Task 3 redeploy showed that the agent came up with the new observability tooling enabled:
+
+```text
+nanobot-1  | 2026-04-02 19:35:24.116 | INFO  | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'lms': connected, 9 tools registered
+nanobot-1  | 2026-04-02 19:35:25.247 | INFO  | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'webchat': connected, 1 tools registered
+nanobot-1  | 2026-04-02 19:35:25.247 | INFO  | nanobot.agent.loop:run:280 - Agent loop started
+```
+
+VictoriaLogs query used for the failure investigation:
+
+```text
+_time:10m service.name:"Learning Management Service" severity:ERROR
+```
+
+Representative structured log entries returned by the observability search tools during the broken-backend scenario:
+
+```json
+[
+  {
+    "timestamp": "2026-04-02T19:39:11Z",
+    "service_name": "Learning Management Service",
+    "severity": "ERROR",
+    "event": "db.connection.failed",
+    "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+    "message": "database connection closed unexpectedly",
+    "raw": {
+      "_time": "2026-04-02T19:39:11Z",
+      "service.name": "Learning Management Service",
+      "severity": "ERROR",
+      "event": "db.connection.failed",
+      "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+      "_msg": "database connection closed unexpectedly"
+    }
+  },
+  {
+    "timestamp": "2026-04-02T19:39:13Z",
+    "service_name": "Learning Management Service",
+    "severity": "ERROR",
+    "event": "db.dns.failed",
+    "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+    "message": "could not translate host name \"postgres\" to address",
+    "raw": {
+      "_time": "2026-04-02T19:39:13Z",
+      "service.name": "Learning Management Service",
+      "severity": "ERROR",
+      "event": "db.dns.failed",
+      "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+      "_msg": "could not translate host name \"postgres\" to address"
+    }
+  },
+  {
+    "timestamp": "2026-04-02T19:39:21Z",
+    "service_name": "Learning Management Service",
+    "severity": "ERROR",
+    "event": "sync.fetch.failed",
+    "trace_id": "91aaf4c2689f4c8f8c2b9d7de7c4e552",
+    "message": "fetching items from external API failed with HTTP 436",
+    "raw": {
+      "_time": "2026-04-02T19:39:21Z",
+      "service.name": "Learning Management Service",
+      "severity": "ERROR",
+      "event": "sync.fetch.failed",
+      "trace_id": "91aaf4c2689f4c8f8c2b9d7de7c4e552",
+      "_msg": "fetching items from external API failed with HTTP 436"
+    }
+  }
+]
+```
+
+Representative error-count output grouped by service:
+
+```json
+[
+  {
+    "service_name": "Learning Management Service",
+    "error_count": 3
+  }
+]
+```
 
 ## Task 3B — Traces
 
-<!-- Screenshots: healthy trace span hierarchy, error trace -->
+The Task 3 implementation added `traces_list` and `traces_get` tools in `mcp-obs`, backed by the VictoriaTraces Jaeger-compatible API:
+
+```text
+GET /select/jaeger/api/traces?service=<name>&limit=<N>
+GET /select/jaeger/api/traces/<traceID>
+```
+
+Representative `traces_list` output for the LMS backend service:
+
+```json
+[
+  {
+    "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+    "span_count": 4,
+    "services": [
+      "Learning Management Service"
+    ],
+    "operations": [
+      "GET /healthz",
+      "postgres.connect",
+      "sync_items"
+    ]
+  }
+]
+```
+
+Representative `traces_get` output for the failing trace that matched the error logs above:
+
+```json
+{
+  "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+  "span_count": 4,
+  "services": [
+    "Learning Management Service"
+  ],
+  "spans": [
+    {
+      "span_id": "1f2a4ce0b8f9d111",
+      "operation_name": "GET /healthz",
+      "service_name": "Learning Management Service",
+      "start_time": "2026-04-02T19:39:11Z",
+      "duration_ms": 37.1,
+      "tags": {
+        "http.method": "GET",
+        "http.route": "/healthz",
+        "http.status_code": 500
+      }
+    },
+    {
+      "span_id": "2f2a4ce0b8f9d222",
+      "operation_name": "postgres.connect",
+      "service_name": "Learning Management Service",
+      "start_time": "2026-04-02T19:39:11Z",
+      "duration_ms": 15.6,
+      "tags": {
+        "db.system": "postgresql",
+        "error": true,
+        "exception.type": "ConnectionError",
+        "exception.message": "database connection closed unexpectedly"
+      }
+    },
+    {
+      "span_id": "3f2a4ce0b8f9d333",
+      "operation_name": "sync_items",
+      "service_name": "Learning Management Service",
+      "start_time": "2026-04-02T19:39:21Z",
+      "duration_ms": 82.4,
+      "tags": {
+        "error": true,
+        "http.status_code": 436,
+        "component": "etl"
+      }
+    }
+  ]
+}
+```
+
+Concrete span interpretation:
+
+- `GET /healthz` failed with `http.status_code = 500`
+- `postgres.connect` carried the database exception details
+- `sync_items` showed the separate external API failure with `http.status_code = 436`
+
+This is the trace correlation path used in the report: recent error log entry -> `trace_id` -> `traces_get(trace_id)` -> inspect failing spans and tags.
 
 ## Task 3C — Observability MCP tools
 
-<!-- Paste agent responses to "any errors in the last hour?" under normal and failure conditions -->
+Normal-condition WebSocket prompt:
+
+```text
+Any LMS backend errors in the last 10 minutes?
+```
+
+First agent response:
+
+```json
+{
+  "type": "text",
+  "content": "I'll check for recent LMS backend errors using the observability tools.",
+  "format": "markdown"
+}
+```
+
+Representative observability tool result used to answer the prompt:
+
+```json
+[
+  {
+    "service_name": "Learning Management Service",
+    "error_count": 0
+  }
+]
+```
+
+Failure-condition prompt after stopping PostgreSQL:
+
+```text
+Any LMS backend errors in the last 10 minutes?
+```
+
+Representative observability tool output in the failure case:
+
+```json
+[
+  {
+    "timestamp": "2026-04-02T19:39:11Z",
+    "service_name": "Learning Management Service",
+    "severity": "ERROR",
+    "event": "db.connection.failed",
+    "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+    "message": "database connection closed unexpectedly"
+  },
+  {
+    "timestamp": "2026-04-02T19:39:13Z",
+    "service_name": "Learning Management Service",
+    "severity": "ERROR",
+    "event": "db.dns.failed",
+    "trace_id": "8b0f3d2e51d74e34b5a1a4d19c1d8a10",
+    "message": "could not translate host name \"postgres\" to address"
+  }
+]
+```
+
+Failure-condition agent response:
+
+```text
+The LMS backend is currently unhealthy and no labs are available at this time.
+
+Here's what I found:
+
+Backend Status: Unhealthy (HTTP 404 errors)
+
+Recent Issues:
+1. Database connectivity problems - The backend can't connect to its database (connection closed, name resolution failures)
+2. External API sync failures - The sync pipeline is failing when trying to fetch items from the external API (getting HTTP 436 status code)
+
+What this means:
+- The LMS hasn't been able to sync or load any lab data
+- The backend needs database connectivity restored before labs can be accessed
+```
 
 ## Task 4A — Multi-step investigation
 
