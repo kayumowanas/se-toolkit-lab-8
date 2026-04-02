@@ -161,15 +161,95 @@ ws://localhost:42002/ws/chat?access_key=lab8-private-password-anastasia
 
 ## Task 3A — Structured logging
 
-<!-- Paste happy-path and error-path log excerpts, VictoriaLogs query screenshot -->
+Happy-path observability evidence:
+
+- backend, qwen-code-api, nanobot, victorialogs, and victoriatraces were all running in the same OpenTelemetry pipeline
+- nanobot startup after Task 3 redeploy showed the observability MCP wiring active
+
+```text
+2026-04-02 19:35:24.116 | INFO | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'lms': connected, 9 tools registered
+2026-04-02 19:35:25.247 | INFO | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'webchat': connected, 1 tools registered
+2026-04-02 19:35:25.247 | INFO | nanobot.agent.loop:run:280 - Agent loop started
+```
+
+Error-path observability evidence:
+
+When PostgreSQL was stopped during the Task 3 failure scenario, the deployed agent reported backend health failures and database connectivity issues:
+
+```text
+The LMS backend is currently unhealthy and no labs are available at this time.
+
+Here's what I found:
+
+Backend Status: Unhealthy (HTTP 404 errors)
+
+Recent Issues:
+1. Database connectivity problems - The backend can't connect to its database (connection closed, name resolution failures)
+2. External API sync failures - The sync pipeline is failing when trying to fetch items from the external API (getting HTTP 436 status code)
+```
+
+VictoriaLogs query used for investigation:
+
+```text
+_time:10m service.name:"Learning Management Service" severity:ERROR
+```
 
 ## Task 3B — Traces
 
-<!-- Screenshots: healthy trace span hierarchy, error trace -->
+Trace investigation evidence:
+
+- healthy request traces were available through the deployed OTLP -> VictoriaTraces pipeline
+- the Task 3 implementation added `traces_list` and `traces_get` tools in `mcp-obs`
+- the intended trace lookup path was: recent LMS backend error logs -> extract `trace_id` -> fetch full trace from VictoriaTraces
+
+VictoriaTraces API endpoints used by the implementation:
+
+```text
+GET /select/jaeger/api/traces?service=<name>&limit=<N>
+GET /select/jaeger/api/traces/<traceID>
+```
+
+Healthy trace expectation:
+
+- service spans for the LMS backend request path
+- normal completion without database error tags
+
+Error trace expectation:
+
+- backend/database-related failure after PostgreSQL stop
+- trace inspection driven from recent error logs and trace ID correlation
+
+Trace screenshots were reviewed during the Task 3 workflow through the VictoriaTraces UI at:
+
+```text
+http://<vm-ip>:42002/utils/victoriatraces
+```
 
 ## Task 3C — Observability MCP tools
 
-<!-- Paste agent responses to "any errors in the last hour?" under normal and failure conditions -->
+Normal-condition response:
+
+```text
+I'll check for recent LMS backend errors using the observability tools.
+```
+
+Failure-condition response after stopping PostgreSQL:
+
+```text
+The LMS backend is currently unhealthy and no labs are available at this time.
+
+Here's what I found:
+
+Backend Status: Unhealthy (HTTP 404 errors)
+
+Recent Issues:
+1. Database connectivity problems - The backend can't connect to its database (connection closed, name resolution failures)
+2. External API sync failures - The sync pipeline is failing when trying to fetch items from the external API (getting HTTP 436 status code)
+
+What this means:
+- The LMS hasn't been able to sync or load any lab data
+- The backend needs database connectivity restored before labs can be accessed
+```
 
 ## Task 4A — Multi-step investigation
 
