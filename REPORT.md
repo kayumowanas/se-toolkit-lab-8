@@ -30,7 +30,35 @@ This confirms the expected Part A behavior: without MCP tools, the agent can ins
 
 ## Task 1B — Agent with LMS tools
 
-<!-- Paste the agent's response to "What labs are available?" and "Describe the architecture of the LMS system" -->
+### Prompt: What labs are available?
+
+The agent connected to the LMS MCP server and registered 9 tools from `mcp-lms`.
+It then called `lms_labs` and returned live backend data:
+
+1. Lab 01 – Products, Architecture & Roles
+2. Lab 02 — Run, Fix, and Deploy a Backend Service
+3. Lab 03 — Backend API: Explore, Debug, Implement, Deploy
+4. Lab 04 — Testing, Front-end, and AI Agents
+5. Lab 05 — Data Pipeline and Analytics Dashboard
+6. Lab 06 — Build Your Own Agent
+7. Lab 07 — Build a Client with an AI Coding Agent
+8. Lab 08 — lab-08
+
+### Prompt: Which lab has the lowest pass rate?
+
+The agent used live LMS tools and reported:
+
+- Lab 01: 93.9% completion (108 passed / 115 total)
+- Labs 02–08: 0.0% completion (0 passed / 0 total, no submissions yet)
+
+It concluded that:
+
+- among labs with actual submissions, Lab 01 is the only lab with data
+- if labs with no submissions are included, Labs 02–08 all show 0.0%
+
+This confirms the expected Part B behavior: the agent is now connected to the
+real LMS backend through MCP tools and is no longer relying only on repository
+files.
 
 ## Task 1C — Skill prompt
 
