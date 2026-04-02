@@ -118,11 +118,46 @@ Or would you like me to show scores for all labs, or perhaps the top learners ac
 
 ## Task 2A — Deployed agent
 
-<!-- Paste a short nanobot startup log excerpt showing the gateway started inside Docker -->
+Startup log excerpt from `docker compose --env-file .env.docker.secret logs nanobot --tail 50`:
+
+```text
+Using config: /app/nanobot/config.resolved.json
+🐈 Starting nanobot gateway version 0.1.4.post5 on port 18790...
+2026-04-02 19:35:21.344 | INFO     | nanobot.channels.manager:_init_channels:58 - WebChat channel enabled
+✓ Channels enabled: webchat
+2026-04-02 19:35:21.673 | INFO     | nanobot.channels.manager:start_all:91 - Starting webchat channel...
+2026-04-02 19:35:21,676 INFO [nanobot_webchat.channel] - WebChat relay listening on 127.0.0.1:8766
+2026-04-02 19:35:21,676 INFO [nanobot_webchat.channel] - WebChat starting on 0.0.0.0:8765
+2026-04-02 19:35:24.116 | INFO     | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'lms': connected, 9 tools registered
+2026-04-02 19:35:25.247 | INFO     | nanobot.agent.tools.mcp:connect_mcp_servers:246 - MCP server 'webchat': connected, 1 tools registered
+2026-04-02 19:35:25.247 | INFO     | nanobot.agent.loop:run:280 - Agent loop started
+```
 
 ## Task 2B — Web client
 
-<!-- Screenshot of a conversation with the agent in the Flutter web app -->
+Conversation evidence from the deployed webchat endpoint (`/ws/chat` via Caddy):
+
+Prompt:
+
+```text
+What labs are available?
+```
+
+Agent response:
+
+```json
+{
+  "type": "text",
+  "content": "Here are the available labs in the LMS:\n\n1. **Lab 01** – Products, Architecture & Roles\n2. **Lab 02** — Run, Fix, and Deploy a Backend Service\n3. **Lab 03** — Backend API: Explore, Debug, Implement, Deploy\n4. **Lab 04** — Testing, Front-end, and AI Agents\n5. **Lab 05** — Data Pipeline and Analytics Dashboard\n6. **Lab 06** — Build Your Own Agent\n7. **Lab 07** — Build a Client with an AI Coding Agent\n8. **lab-08** — (no description)\n\nWould you like to see details about a specific lab, such as pass rates, completion stats, or submission timelines?",
+  "format": "markdown"
+}
+```
+
+This response was returned through the deployed WebSocket route:
+
+```text
+ws://localhost:42002/ws/chat?access_key=lab8-private-password-anastasia
+```
 
 ## Task 3A — Structured logging
 
