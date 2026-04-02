@@ -11,8 +11,7 @@ WORKDIR /app
 COPY --from=workspace pyproject.toml uv.lock /app/
 COPY pyproject.toml README.md /app/nanobot/
 COPY --from=workspace mcp /app/mcp
-# Task 2B — uncomment after you add the nanobot-websocket-channel submodule.
-# COPY --from=workspace nanobot-websocket-channel /app/nanobot-websocket-channel
+COPY --from=workspace nanobot-websocket-channel /app/nanobot-websocket-channel
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-workspace --package nanobot
